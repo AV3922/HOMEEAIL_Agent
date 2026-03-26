@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HyperAgent Home Energy Control Center</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --panel-2: #1a243a;
+      --text: #e9f0ff;
+      --muted: #9db0d8;
+      --accent: #5cc8ff;
+      --ok: #29c36a;
+      --warn: #ffb648;
+      --danger: #ff6f6f;
+      --border: #2b3a59;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 20% -10%, #1f3b66, transparent 35%), var(--bg);
+      line-height: 1.45;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 1rem;
+      background: #0d1528;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+    .brand { font-weight: 800; font-size: 1.05rem; }
+    .sub { color: var(--muted); font-size: .88rem; margin-top: .25rem; }
+    .step {
+      margin-top: .85rem;
+      padding: .7rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0f1a31;
+      font-size: .9rem;
+    }
+    .step b { display: block; }
+
+    .content { padding: 1rem 1.2rem 2rem; max-width: 1200px; width: 100%; margin: 0 auto; }
+    .hero {
+      border: 1px solid var(--border);
+      background: linear-gradient(130deg, #121d34, #131c2f);
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .hero h1 { margin: 0 0 .4rem; font-size: 1.5rem; }
+    .hero p { margin: .35rem 0; color: var(--muted); }
+
+    .grid {
+      display: grid;
+      gap: .95rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      padding: .95rem;
+    }
+    .card h2 { margin: 0 0 .55rem; font-size: 1.05rem; }
+    .help { color: var(--muted); font-size: .9rem; margin-bottom: .7rem; }
+    label { display: block; font-size: .9rem; margin-bottom: .45rem; }
+    input, select, textarea {
+      width: 100%;
+      margin-top: .25rem;
+      border: 1px solid #3c4b6f;
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: .5rem;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: .55rem .75rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-right: .35rem;
+      margin-top: .35rem;
+    }
+    .primary { background: var(--accent); color: #041327; }
+    .secondary { background: #9edfff; color: #00233e; }
+    .ghost { background: #24355b; color: #d8ebff; }
+    .status { margin-top: .45rem; font-size: .9rem; }
+    .badge { border-radius: 999px; padding: .17rem .5rem; font-weight: 700; font-size: .78rem; }
+    .ok { background: rgba(41,195,106,.2); color: #b9ffd2; }
+    .warn { background: rgba(255,182,72,.18); color: #ffe2b2; }
+    .danger { background: rgba(255,111,111,.2); color: #ffd0d0; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    th, td { border-bottom: 1px solid var(--border); padding: .44rem; text-align: left; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0d1730; border: 1px solid var(--border); border-radius: 8px; padding: .65rem; max-height: 290px; overflow: auto; }
+    details { border: 1px solid var(--border); border-radius: 10px; padding: .7rem; background: #101b32; }
+    summary { cursor: pointer; font-weight: 700; }
+    .full { grid-column: 1 / -1; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">HyperAgent Energy Control Center</div>
+      <div class="sub">User-first demo + internal technical reference</div>
+
+      <div class="step"><b>Step 1: Connect devices</b>Add any system profile (REST/MQTT/Modbus/BACnet/etc).</div>
+      <div class="step"><b>Step 2: Load telemetry</b>Upload CSV/XLSX or load demo data.</div>
+      <div class="step"><b>Step 3: Generate decisions</b>Run autonomous agent cycle to produce actions.</div>
+      <div class="step"><b>Step 4: Learn</b>Apply feedback score to adapt policy weights.</div>
+      <div class="step"><b>Step 5: Evolve (DGM)</b>Run open-ended self-improvement cycles.</div>
+      <div class="step"><b>Step 6: Verify API</b>Call simulated endpoints in API playground.</div>
+    </aside>
+
+    <main class="content">
+      <section class="hero">
+        <h1>Autonomous Home Energy HyperAgent API</h1>
+        <p><b>What this page does:</b> connects heterogeneous devices, ingests hardware telemetry, makes autonomous decisions, learns from feedback, and exposes API-style responses.</p>
+        <p><b>Who this is for:</b> operations users (easy workflow) + engineering team (technical details in expandable docs below).</p>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2>1) Device Connection</h2>
+          <div class="help">Register a device/system profile the agent can read from and control/recommend against.</div>
+          <label>Device ID <input id="deviceId" value="hvac_main" /></label>
+          <label>Device Type
+            <select id="deviceType">
+              <option>HVAC</option><option>Battery</option><option>Solar</option><option>EV Charger</option><option>Water Heater</option><option>Smart Plug</option>
+            </select>
+          </label>
+          <label>Protocol Adapter
+            <select id="protocol"><option>REST</option><option>MQTT</option><option>Modbus</option><option>BACnet</option><option>Zigbee</option><option>Z-Wave</option><option>Webhook</option></select>
+          </label>
+          <button class="primary" onclick="connectDevice()">Connect Device</button>
+          <div id="connectStatus" class="status"></div>
+        </section>
+
+        <section class="card">
+          <h2>2) Telemetry Ingestion</h2>
+          <div class="help">Upload hardware data. Required columns: <code>timestamp,deviceId,powerKw,temperature,pricePerKwh,occupancy</code></div>
+          <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
+          <button class="primary" onclick="ingestFile()">Upload & Parse</button>
+          <button class="secondary" onclick="loadDemoData()">Load Demo Dataset</button>
+          <div id="ingestStatus" class="status"></div>
+        </section>
+
+        <section class="card full">
+          <h2>3) Autonomous Decision Engine</h2>
+          <div class="help">Agent evaluates latest data per device and outputs either direct action or recommendation.</div>
+          <button class="primary" onclick="runDecisionCycle()">Run One Cycle</button>
+          <button class="secondary" onclick="toggleAutonomous()" id="autoBtn">Start Continuous Mode</button>
+          <div id="agentSummary" class="status"></div>
+          <table>
+            <thead><tr><th>Time</th><th>Target</th><th>Action</th><th>Reason</th><th>Mode</th></tr></thead>
+            <tbody id="decisionTable"></tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <h2>4) Learning / Policy Update</h2>
+          <div class="help">Provide quality feedback in range <b>-1 to +1</b>. Positive = model behavior was good.</div>
+          <label>Feedback Score
+            <input id="feedbackScore" type="number" min="-1" max="1" step="0.1" value="0.6" />
+          </label>
+          <button class="primary" onclick="applyFeedback()">Apply Feedback</button>
+          <pre id="weightsView"></pre>
+        </section>
+
+        <section class="card">
+          <h2>5) Darwin Gödel Machine (DGM) Mode</h2>
+          <div class="help">Open-ended self-improvement mode inspired by Darwin Gödel Machine ideas.</div>
+          <button class="primary" onclick="toggleEvolution()" id="evoBtn">Enable DGM Mode</button>
+          <button class="secondary" onclick="runEvolutionCycle()">Run Evolution Cycle</button>
+          <div id="evolutionStatus" class="status"></div>
+          <pre id="evolutionView"></pre>
+          <div class="help">Reference: <a href="https://github.com/jennyzzt/dgm" target="_blank" rel="noopener">github.com/jennyzzt/dgm</a></div>
+        </section>
+
+        <section class="card">
+          <h2>6) API Playground</h2>
+          <div class="help">Simulated endpoints for testing behavior before real backend deployment.</div>
+          <label>Endpoint
+            <select id="apiEndpoint">
+              <option value="/api/v1/devices">GET /api/v1/devices</option>
+              <option value="/api/v1/telemetry">GET /api/v1/telemetry</option>
+              <option value="/api/v1/decisions">GET /api/v1/decisions</option>
+              <option value="/api/v1/recommendations">GET /api/v1/recommendations</option>
+              <option value="/api/v1/policy">GET /api/v1/policy</option>
+              <option value="/api/v1/evolution">GET /api/v1/evolution</option>
+            </select>
+          </label>
+          <button class="primary" onclick="callApi()">Call Endpoint</button>
+          <pre id="apiOutput"></pre>
+        </section>
+
+        <section class="card full">
+          <h2>7) Technical Documentation (Internal Team)</h2>
+          <details open>
+            <summary>Architecture Overview</summary>
+            <pre id="docs"></pre>
+          </details>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      devices: [],
+      telemetry: [],
+      decisions: [],
+      recommendations: [],
+      policy: { costWeight: 0.45, comfortWeight: 0.25, carbonWeight: 0.2, autonomyWeight: 0.1 },
+      evolution: { enabled: false, generation: 0, fitness: 0.5, notes: [] },
+      autoMode: false,
+      timer: null
+    };
+
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const badge = (tone, text) => `<span class="badge ${tone}">${text}</span>`;
+
+    function connectDevice() {
+      const d = {
+        id: document.getElementById('deviceId').value.trim() || `device_${Date.now()}`,
+        type: document.getElementById('deviceType').value,
+        protocol: document.getElementById('protocol').value,
+        connectedAt: new Date().toISOString(),
+        capabilities: ['readTelemetry', 'controlAction', 'recommendUser']
+      };
+      state.devices = state.devices.filter(x => x.id !== d.id);
+      state.devices.push(d);
+      document.getElementById('connectStatus').innerHTML = `${badge('ok', 'CONNECTED')} ${d.id} onboarded via ${d.protocol} adapter.`;
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) return [];
+      const headers = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        const row = {};
+        headers.forEach((h, i) => row[h] = vals[i]);
+        row.powerKw = Number(row.powerKw || 0);
+        row.temperature = Number(row.temperature || 0);
+        row.pricePerKwh = Number(row.pricePerKwh || 0.2);
+        row.occupancy = Number(row.occupancy || 0);
+        row.timestamp = row.timestamp || new Date().toISOString();
+        row.deviceId = row.deviceId || 'unknown_device';
+        return row;
+      });
+    }
+
+    async function parseXLSX(file) {
+      if (!window.XLSX) throw new Error('XLSX parser unavailable in this standalone page. Use CSV or add SheetJS in production.');
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(ws).map(row => ({
+        timestamp: row.timestamp || new Date().toISOString(),
+        deviceId: row.deviceId || 'unknown_device',
+        powerKw: Number(row.powerKw || 0),
+        temperature: Number(row.temperature || 0),
+        pricePerKwh: Number(row.pricePerKwh || 0.2),
+        occupancy: Number(row.occupancy || 0)
+      }));
+    }
+
+    async function ingestFile() {
+      const file = document.getElementById('fileInput').files?.[0];
+      if (!file) {
+        document.getElementById('ingestStatus').innerHTML = `${badge('warn', 'NO FILE')} Please select a CSV/XLSX file first.`;
+        return;
+      }
+      try {
+        let rows = [];
+        if (file.name.toLowerCase().endsWith('.csv')) rows = parseCSV(await file.text());
+        else rows = await parseXLSX(file);
+        state.telemetry.push(...rows);
+        document.getElementById('ingestStatus').innerHTML = `${badge('ok', 'INGESTED')} ${rows.length} rows from ${file.name}.`;
+      } catch (e) {
+        document.getElementById('ingestStatus').innerHTML = `${badge('danger', 'ERROR')} ${e.message}`;
+      }
+    }
+
+    function loadDemoData() {
+      const now = Date.now();
+      const pool = state.devices.length ? state.devices.map(d => d.id) : ['hvac_main', 'ev_charger_1', 'water_heater_1'];
+      const rows = Array.from({ length: 30 }, (_, i) => ({
+        timestamp: new Date(now - i * 15 * 60 * 1000).toISOString(),
+        deviceId: pool[i % pool.length],
+        powerKw: Number((1 + Math.random() * 4).toFixed(2)),
+        temperature: Number((19 + Math.random() * 8).toFixed(1)),
+        pricePerKwh: Number((0.1 + Math.random() * 0.25).toFixed(3)),
+        occupancy: Math.random() > 0.32 ? 1 : 0
+      }));
+      state.telemetry.push(...rows);
+      document.getElementById('ingestStatus').innerHTML = `${badge('ok', 'DEMO DATA')} ${rows.length} synthetic rows loaded.`;
+    }
+
+    function latestTelemetryByDevice() {
+      const map = new Map();
+      [...state.telemetry].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(t => {
+        if (!map.has(t.deviceId)) map.set(t.deviceId, t);
+      });
+      return [...map.values()];
+    }
+
+    function decideForRow(row) {
+      const p = state.policy;
+      const score = (row.pricePerKwh * p.costWeight) + (row.powerKw * p.carbonWeight) - (Math.abs(22 - row.temperature) * p.comfortWeight) + p.autonomyWeight;
+
+      let action = 'maintain';
+      let reason = 'Balanced operating condition';
+      let mode = 'automatic';
+
+      if (row.deviceId.includes('ev') && row.pricePerKwh > 0.23) {
+        action = 'defer_charging'; reason = 'High energy tariff detected for EV charging window';
+      } else if (row.deviceId.includes('hvac') && row.temperature < 20 && row.occupancy === 1) {
+        action = 'preheat_home'; reason = 'Occupied zone below comfort threshold';
+      } else if (score > 0.45) {
+        action = 'reduce_load'; reason = 'Cost/carbon weighted pressure above target';
+      } else if (score < 0.1) {
+        action = 'opportunistic_run'; reason = 'Low cost window with acceptable comfort margin';
+      }
+
+      if (Math.random() < 0.12) {
+        mode = 'recommendation';
+        state.recommendations.push({ at: new Date().toISOString(), target: row.deviceId, recommendation: `Consider ${action}`, reason });
+      }
+
+      return { at: new Date().toISOString(), target: row.deviceId, action, reason, mode };
+    }
+
+    function runDecisionCycle() {
+      const latest = latestTelemetryByDevice();
+      if (!latest.length) {
+        document.getElementById('agentSummary').innerHTML = `${badge('warn', 'NO DATA')} Upload/load telemetry first.`;
+        return;
+      }
+      const batch = latest.map(decideForRow);
+      state.decisions.push(...batch);
+      renderDecisions(batch);
+      document.getElementById('agentSummary').innerHTML = `${badge('ok', 'DONE')} ${batch.length} decisions generated.`;
+    }
+
+    function renderDecisions(batch) {
+      const tbody = document.getElementById('decisionTable');
+      batch.reverse().forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${new Date(d.at).toLocaleTimeString()}</td><td>${d.target}</td><td>${d.action}</td><td>${d.reason}</td><td>${d.mode}</td>`;
+        tbody.prepend(tr);
+      });
+    }
+
+    function applyFeedback() {
+      const score = Number(document.getElementById('feedbackScore').value || 0);
+      const alpha = 0.05;
+      state.policy.costWeight = clamp(state.policy.costWeight + alpha * (score < 0 ? 1 : -0.3), 0.1, 0.7);
+      state.policy.comfortWeight = clamp(state.policy.comfortWeight + alpha * (score > 0 ? 0.2 : -0.2), 0.1, 0.5);
+      state.policy.carbonWeight = clamp(state.policy.carbonWeight + alpha * 0.1, 0.1, 0.4);
+      state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + alpha * score, 0.05, 0.3);
+      refreshPolicy();
+    }
+
+    function refreshPolicy() {
+      document.getElementById('weightsView').textContent = JSON.stringify(state.policy, null, 2);
+    }
+
+    function toggleAutonomous() {
+      state.autoMode = !state.autoMode;
+      const btn = document.getElementById('autoBtn');
+      if (state.autoMode) {
+        btn.textContent = 'Stop Continuous Mode';
+        state.timer = setInterval(() => {
+          if (state.telemetry.length) runDecisionCycle();
+          if (Math.random() > 0.5) applyFeedback();
+          if (state.evolution.enabled && Math.random() > 0.5) runEvolutionCycle();
+        }, 7000);
+      } else {
+        btn.textContent = 'Start Continuous Mode';
+        clearInterval(state.timer);
+      }
+    }
+
+    function runEvolutionCycle() {
+      state.evolution.generation += 1;
+      const policyScore = (state.policy.autonomyWeight + state.policy.carbonWeight) / 2;
+      const activityScore = Math.min(1, 0.35 + state.decisions.length / 200);
+      const noise = (Math.random() - 0.5) * 0.08;
+      state.evolution.fitness = clamp((policyScore * 0.55) + (activityScore * 0.45) + noise, 0, 1);
+
+      state.evolution.notes.push({
+        at: new Date().toISOString(),
+        generation: state.evolution.generation,
+        mutation: `Exploration ${(0.1 + Math.random()*0.4).toFixed(2)}`,
+        fitness: Number(state.evolution.fitness.toFixed(3))
+      });
+      state.evolution.notes = state.evolution.notes.slice(-10);
+
+      if (state.evolution.enabled && state.evolution.fitness > 0.75) {
+        state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + 0.01, 0.05, 0.3);
+      }
+      refreshEvolution();
+      refreshPolicy();
+    }
+
+    function toggleEvolution() {
+      state.evolution.enabled = !state.evolution.enabled;
+      document.getElementById('evoBtn').textContent = state.evolution.enabled ? 'Disable DGM Mode' : 'Enable DGM Mode';
+      refreshEvolution();
+    }
+
+    function refreshEvolution() {
+      const tone = state.evolution.enabled ? 'ok' : 'warn';
+      const label = state.evolution.enabled ? 'ENABLED' : 'DISABLED';
+      document.getElementById('evolutionStatus').innerHTML = `${badge(tone, label)} Generation ${state.evolution.generation}, Fitness ${state.evolution.fitness.toFixed(3)}`;
+      document.getElementById('evolutionView').textContent = JSON.stringify(state.evolution, null, 2);
+    }
+
+    function apiRouter(path) {
+      const routes = {
+        '/api/v1/devices': () => ({ count: state.devices.length, data: state.devices }),
+        '/api/v1/telemetry': () => ({ count: state.telemetry.length, data: state.telemetry.slice(-30) }),
+        '/api/v1/decisions': () => ({ count: state.decisions.length, data: state.decisions.slice(-30) }),
+        '/api/v1/recommendations': () => ({ count: state.recommendations.length, data: state.recommendations.slice(-30) }),
+        '/api/v1/policy': () => ({ data: state.policy }),
+        '/api/v1/evolution': () => ({ data: state.evolution })
+      };
+      if (!routes[path]) return { status: 404, error: 'Not Found' };
+      return { status: 200, ...routes[path]() };
+    }
+
+    function callApi() {
+      const path = document.getElementById('apiEndpoint').value;
+      document.getElementById('apiOutput').textContent = JSON.stringify(apiRouter(path), null, 2);
+    }
+
+    function loadDocumentation() {
+      const lines = [
+        'INTERNAL TECHNICAL DOCUMENTATION',
+        '================================',
+        '',
+        '1) Runtime Components',
+        '- UI Layer: Collects user input for device onboarding, telemetry ingestion, and controls.',
+        '- Agent Core: decision policy + feedback-based adaptation + DGM-inspired evolution loop.',
+        '- API Facade: in-browser route dispatcher returning JSON from in-memory state.',
+        '',
+        '2) In-Memory Data Model',
+        '- state.devices[]         -> normalized device profile / adapter capability',
+        '- state.telemetry[]       -> normalized measurements (timestamp, power, temperature, tariff, occupancy)',
+        '- state.decisions[]       -> generated action records',
+        '- state.recommendations[] -> recommendation records when direct action is not selected',
+        '- state.policy{}          -> tunable weights for cost/comfort/carbon/autonomy',
+        '- state.evolution{}       -> DGM-style fitness/generation/mutation history',
+        '',
+        '3) Decision Algorithm (per latest row per device)',
+        'score = pricePerKwh*costWeight + powerKw*carbonWeight - abs(22-temperature)*comfortWeight + autonomyWeight',
+        '- EV + high price        => defer_charging',
+        '- HVAC + occupied + cold => preheat_home',
+        '- score high             => reduce_load',
+        '- score low              => opportunistic_run',
+        '- otherwise              => maintain',
+        '',
+        '4) Learning/Adaptation',
+        '- applyFeedback(score) updates policy weights with bounded step updates.',
+        '- score range: [-1,+1].',
+        '- clamp() enforces safe policy boundaries.',
+        '',
+        '5) DGM-inspired Evolution',
+        '- runEvolutionCycle() increments generation, computes fitness from policy/activity/noise.',
+        '- stores rolling mutation notes (last 10).',
+        '- when enabled and fitness high, autonomyWeight may increase slightly.',
+        '- reference implementation source: https://github.com/jennyzzt/dgm',
+        '',
+        '6) Productionization Guidance',
+        '- Replace in-memory arrays with persistent storage (time-series DB + relational metadata DB).',
+        '- Replace apiRouter with real backend API (FastAPI/Node/Go).',
+        '- Integrate MQTT/Modbus/BACnet connector workers.',
+        '- Add authN/authZ (OAuth2/JWT), audit logs, and safety interlocks for control actions.',
+        '- Add offline model training + online policy service rollout strategy.'
+      ];
+      document.getElementById('docs').textContent = lines.join('\n');
+    }
+
+    refreshPolicy();
+    refreshEvolution();
+    loadDocumentation();
+  </script>
+</body>
+</html>
