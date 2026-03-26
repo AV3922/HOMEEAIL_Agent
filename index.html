@@ -454,9 +454,50 @@
     }
 
     function loadDocumentation() {
-      const text = `
-INTERNAL TECHNICAL DOCUMENTATION
-      document.getElementById('docs').textContent = text;
+      const lines = [
+        'INTERNAL TECHNICAL DOCUMENTATION',
+        '================================',
+        '',
+        '1) Runtime Components',
+        '- UI Layer: Collects user input for device onboarding, telemetry ingestion, and controls.',
+        '- Agent Core: decision policy + feedback-based adaptation + DGM-inspired evolution loop.',
+        '- API Facade: in-browser route dispatcher returning JSON from in-memory state.',
+        '',
+        '2) In-Memory Data Model',
+        '- state.devices[]         -> normalized device profile / adapter capability',
+        '- state.telemetry[]       -> normalized measurements (timestamp, power, temperature, tariff, occupancy)',
+        '- state.decisions[]       -> generated action records',
+        '- state.recommendations[] -> recommendation records when direct action is not selected',
+        '- state.policy{}          -> tunable weights for cost/comfort/carbon/autonomy',
+        '- state.evolution{}       -> DGM-style fitness/generation/mutation history',
+        '',
+        '3) Decision Algorithm (per latest row per device)',
+        'score = pricePerKwh*costWeight + powerKw*carbonWeight - abs(22-temperature)*comfortWeight + autonomyWeight',
+        '- EV + high price        => defer_charging',
+        '- HVAC + occupied + cold => preheat_home',
+        '- score high             => reduce_load',
+        '- score low              => opportunistic_run',
+        '- otherwise              => maintain',
+        '',
+        '4) Learning/Adaptation',
+        '- applyFeedback(score) updates policy weights with bounded step updates.',
+        '- score range: [-1,+1].',
+        '- clamp() enforces safe policy boundaries.',
+        '',
+        '5) DGM-inspired Evolution',
+        '- runEvolutionCycle() increments generation, computes fitness from policy/activity/noise.',
+        '- stores rolling mutation notes (last 10).',
+        '- when enabled and fitness high, autonomyWeight may increase slightly.',
+        '- reference implementation source: https://github.com/jennyzzt/dgm',
+        '',
+        '6) Productionization Guidance',
+        '- Replace in-memory arrays with persistent storage (time-series DB + relational metadata DB).',
+        '- Replace apiRouter with real backend API (FastAPI/Node/Go).',
+        '- Integrate MQTT/Modbus/BACnet connector workers.',
+        '- Add authN/authZ (OAuth2/JWT), audit logs, and safety interlocks for control actions.',
+        '- Add offline model training + online policy service rollout strategy.'
+      ];
+      document.getElementById('docs').textContent = lines.join('\n');
     }
 
     refreshPolicy();
