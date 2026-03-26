@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HyperAgent Home Energy API</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a31;
+      --soft: #1b2342;
+      --text: #e8eefc;
+      --muted: #b7c2e5;
+      --ok: #16a34a;
+      --warn: #f59e0b;
+      --danger: #dc2626;
+      --accent: #38bdf8;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #090d1b, #101936 40%, #0b1020);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      padding: 2rem 1.25rem;
+      border-bottom: 1px solid #2a355f;
+      background: rgba(19, 26, 49, 0.75);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+    h1, h2, h3 { margin: 0 0 0.8rem 0; }
+    h1 { font-size: 1.7rem; }
+    h2 { margin-top: 1.2rem; font-size: 1.25rem; }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.2rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid #2a355f;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+    .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    button {
+      background: var(--accent);
+      color: #041322;
+      border: none;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: .55rem .8rem;
+      cursor: pointer;
+    }
+    button.secondary { background: #7dd3fc; }
+    input, select, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--soft);
+      border: 1px solid #3b4a82;
+      border-radius: 8px;
+      color: var(--text);
+      padding: .5rem;
+      margin-top: .35rem;
+    }
+    .small { color: var(--muted); font-size: .9rem; }
+    .badge {
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 700;
+      padding: .2rem .55rem;
+      display: inline-block;
+    }
+    .ok { background: rgba(22,163,74,.2); color: #8ef7b7; }
+    .warn { background: rgba(245,158,11,.2); color: #ffd58d; }
+    .danger { background: rgba(220,38,38,.2); color: #ffaaaa; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    th, td {
+      padding: .45rem;
+      border-bottom: 1px solid #2a355f;
+      text-align: left;
+    }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #0b1431;
+      border: 1px solid #2a355f;
+      border-radius: 8px;
+    }
+    pre {
+      padding: .75rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 340px;
+    }
+    footer {
+      max-width: 1100px;
+      margin: 1rem auto 2rem;
+      padding: 0 1.2rem;
+      color: var(--muted);
+    }
+    .full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Autonomous Home Energy HyperAgent API (Single-File HTML)</h1>
+    <div class="small">API simulation + adaptive decision agent + CSV/XLSX ingestion + documentation in one HTML file.</div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1) Device Connection (Universal Adapter)</h2>
+      <p class="small">Connect any device/system by defining a protocol profile. Agent can consume data and issue actions/recommendations.</p>
+      <label>Device ID<input id="deviceId" value="hvac_main" /></label>
+      <label>Type
+        <select id="deviceType">
+          <option>HVAC</option><option>Battery</option><option>Solar</option><option>EV Charger</option><option>Water Heater</option><option>Smart Plug</option>
+        </select>
+      </label>
+      <label>Protocol
+        <select id="protocol"><option>REST</option><option>MQTT</option><option>Modbus</option><option>BACnet</option><option>Zigbee</option><option>Z-Wave</option><option>Webhook</option></select>
+      </label>
+      <button onclick="connectDevice()">Connect Device</button>
+      <div id="connectStatus" class="small" style="margin-top:.6rem"></div>
+    </section>
+
+    <section class="card">
+      <h2>2) Hardware Data Upload (CSV/XLSX)</h2>
+      <p class="small">Expected columns: <code>timestamp,deviceId,powerKw,temperature,pricePerKwh,occupancy</code></p>
+      <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
+      <div class="row" style="margin-top:.6rem">
+        <button onclick="ingestFile()">Ingest Data</button>
+        <button class="secondary" onclick="loadDemoData()">Load Demo Dataset</button>
+      </div>
+      <div id="ingestStatus" class="small" style="margin-top:.6rem"></div>
+    </section>
+
+    <section class="card full">
+      <h2>3) HyperAgent Decision Engine</h2>
+      <p class="small">Runs autonomously on ingested telemetry + learned policy weights. Produces actions and user recommendations.</p>
+      <div class="row">
+        <button onclick="runDecisionCycle()">Run 1 Decision Cycle</button>
+        <button class="secondary" onclick="toggleAutonomous()" id="autoBtn">Start Autonomous Mode</button>
+      </div>
+      <div id="agentSummary" class="small" style="margin-top:.6rem"></div>
+      <table style="margin-top:.8rem">
+        <thead><tr><th>Time</th><th>Target</th><th>Action</th><th>Reason</th><th>Mode</th></tr></thead>
+        <tbody id="decisionTable"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>4) Learn & Adapt (Online Learning)</h2>
+      <p class="small">Agent updates policy based on feedback score (cost, comfort, carbon, user overrides).</p>
+      <label>Feedback Score (-1 to +1)
+        <input id="feedbackScore" type="number" min="-1" max="1" step="0.1" value="0.6" />
+      </label>
+      <button onclick="applyFeedback()">Apply Feedback</button>
+      <pre id="weightsView"></pre>
+    </section>
+
+    <section class="card">
+      <h2>5) API Playground</h2>
+      <p class="small">Local in-browser API facade that mirrors real backend endpoints.</p>
+      <label>Endpoint
+        <select id="apiEndpoint">
+          <option value="/api/v1/devices">GET /api/v1/devices</option>
+          <option value="/api/v1/telemetry">GET /api/v1/telemetry</option>
+          <option value="/api/v1/decisions">GET /api/v1/decisions</option>
+          <option value="/api/v1/recommendations">GET /api/v1/recommendations</option>
+          <option value="/api/v1/policy">GET /api/v1/policy</option>
+          <option value="/api/v1/evolution">GET /api/v1/evolution</option>
+        </select>
+      </label>
+      <button onclick="callApi()">Call API</button>
+      <pre id="apiOutput"></pre>
+    </section>
+
+
+
+    <section class="card full">
+      <h2>6) Darwin Gödel Machine (DGM) Integration</h2>
+      <p class="small">Open-ended self-improving agent mode inspired by Darwin Gödel Machine research.</p>
+      <div class="row">
+        <button onclick="toggleEvolution()" id="evoBtn">Enable DGM Mode</button>
+        <button class="secondary" onclick="runEvolutionCycle()">Run Evolution Cycle</button>
+      </div>
+      <div id="evolutionStatus" class="small" style="margin-top:.6rem"></div>
+      <pre id="evolutionView"></pre>
+      <p class="small">Reference repo: <a href="https://github.com/jennyzzt/dgm" target="_blank" rel="noopener">github.com/jennyzzt/dgm</a></p>
+    </section>
+
+
+    <section class="card full">
+      <h2>7) Documentation (Architecture + Endpoints + Integration)</h2>
+      <pre id="docs"></pre>
+    </section>
+  </main>
+
+  <footer>
+    Built as a single self-contained HTML prototype. For production, move API layer to backend (Node/FastAPI/Go), persist data in DB, and secure endpoints with OAuth2/JWT.
+  </footer>
+
+  <script>
+    const state = {
+      devices: [],
+      telemetry: [],
+      decisions: [],
+      recommendations: [],
+      policy: { costWeight: 0.45, comfortWeight: 0.25, carbonWeight: 0.2, autonomyWeight: 0.1 },
+      evolution: { enabled: false, generation: 0, fitness: 0.5, notes: [] },
+      autoMode: false,
+      timer: null
+    };
+
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+    function connectDevice() {
+      const d = {
+        id: document.getElementById('deviceId').value.trim() || `device_${Date.now()}`,
+        type: document.getElementById('deviceType').value,
+        protocol: document.getElementById('protocol').value,
+        connectedAt: new Date().toISOString(),
+        capabilities: ['readTelemetry', 'control', 'recommend']
+      };
+      state.devices = state.devices.filter(x => x.id !== d.id);
+      state.devices.push(d);
+      document.getElementById('connectStatus').innerHTML = `<span class="badge ok">CONNECTED</span> ${d.id} via ${d.protocol}`;
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) return [];
+      const headers = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        const row = {};
+        headers.forEach((h, i) => row[h] = vals[i]);
+        row.powerKw = Number(row.powerKw || 0);
+        row.temperature = Number(row.temperature || 0);
+        row.pricePerKwh = Number(row.pricePerKwh || 0.2);
+        row.occupancy = Number(row.occupancy || 0);
+        row.timestamp = row.timestamp || new Date().toISOString();
+        row.deviceId = row.deviceId || 'unknown_device';
+        return row;
+      });
+    }
+
+    async function parseXLSX(file) {
+      if (!window.XLSX) {
+        throw new Error('XLSX parser unavailable. Use CSV or include SheetJS in production backend.');
+      }
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(ws).map(row => ({
+        timestamp: row.timestamp || new Date().toISOString(),
+        deviceId: row.deviceId || 'unknown_device',
+        powerKw: Number(row.powerKw || 0),
+        temperature: Number(row.temperature || 0),
+        pricePerKwh: Number(row.pricePerKwh || 0.2),
+        occupancy: Number(row.occupancy || 0)
+      }));
+    }
+
+    async function ingestFile() {
+      const file = document.getElementById('fileInput').files?.[0];
+      if (!file) return setIngest('No file selected.', 'danger');
+      try {
+        let rows = [];
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          rows = parseCSV(await file.text());
+        } else {
+          rows = await parseXLSX(file);
+        }
+        state.telemetry.push(...rows);
+        setIngest(`Ingested ${rows.length} rows from ${file.name}`, 'ok');
+      } catch (e) {
+        setIngest(e.message, 'warn');
+      }
+    }
+
+    function loadDemoData() {
+      const now = Date.now();
+      const devicePool = state.devices.length ? state.devices.map(d => d.id) : ['hvac_main', 'ev_charger_1', 'water_heater_1'];
+      const rows = Array.from({ length: 25 }, (_, i) => ({
+        timestamp: new Date(now - i * 15 * 60 * 1000).toISOString(),
+        deviceId: devicePool[i % devicePool.length],
+        powerKw: Number((1 + Math.random() * 4).toFixed(2)),
+        temperature: Number((19 + Math.random() * 8).toFixed(1)),
+        pricePerKwh: Number((0.11 + Math.random() * 0.22).toFixed(3)),
+        occupancy: Math.random() > 0.3 ? 1 : 0
+      }));
+      state.telemetry.push(...rows);
+      setIngest(`Loaded demo data (${rows.length} rows)`, 'ok');
+    }
+
+    function setIngest(msg, tone='ok') {
+      const cls = tone === 'ok' ? 'ok' : tone === 'warn' ? 'warn' : 'danger';
+      document.getElementById('ingestStatus').innerHTML = `<span class="badge ${cls}">${tone.toUpperCase()}</span> ${msg}`;
+    }
+
+    function latestTelemetryByDevice() {
+      const map = new Map();
+      [...state.telemetry].sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp)).forEach(t => {
+        if (!map.has(t.deviceId)) map.set(t.deviceId, t);
+      });
+      return [...map.values()];
+    }
+
+    function decideForRow(row) {
+      const p = state.policy;
+      const costPressure = row.pricePerKwh * p.costWeight;
+      const thermalPressure = Math.abs(22 - row.temperature) * p.comfortWeight;
+      const carbonProxy = row.powerKw * p.carbonWeight;
+      const autonomyBias = p.autonomyWeight;
+      const score = costPressure + carbonProxy - thermalPressure + autonomyBias;
+
+      let action = 'maintain';
+      let reason = 'Balanced operating condition';
+      let mode = 'automatic';
+
+      if (row.deviceId.includes('ev') && row.pricePerKwh > 0.23) {
+        action = 'defer_charging'; reason = 'High tariff period for EV charging';
+      } else if (row.deviceId.includes('hvac') && row.temperature < 20 && row.occupancy === 1) {
+        action = 'preheat_home'; reason = 'Comfort restoration when occupied';
+      } else if (score > 0.45) {
+        action = 'reduce_load'; reason = 'High cost/carbon pressure detected';
+      } else if (score < 0.1) {
+        action = 'opportunistic_run'; reason = 'Low tariff with acceptable comfort margin';
+      }
+
+      if (Math.random() < 0.1) {
+        mode = 'recommendation';
+        state.recommendations.push({
+          at: new Date().toISOString(),
+          target: row.deviceId,
+          recommendation: `Consider ${action} for ${row.deviceId}`,
+          reason
+        });
+      }
+
+      return { at: new Date().toISOString(), target: row.deviceId, action, reason, mode };
+    }
+
+    function runDecisionCycle() {
+      const latest = latestTelemetryByDevice();
+      if (!latest.length) {
+        document.getElementById('agentSummary').innerHTML = '<span class="badge warn">NO DATA</span> Please ingest telemetry first.';
+        return;
+      }
+      const batch = latest.map(decideForRow);
+      state.decisions.push(...batch);
+      renderDecisions(batch);
+      document.getElementById('agentSummary').innerHTML = `<span class="badge ok">DECISIONS</span> Generated ${batch.length} decisions from latest telemetry snapshots.`;
+    }
+
+    function renderDecisions(batch) {
+      const tbody = document.getElementById('decisionTable');
+      batch.reverse().forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${new Date(d.at).toLocaleTimeString()}</td><td>${d.target}</td><td>${d.action}</td><td>${d.reason}</td><td>${d.mode}</td>`;
+        tbody.prepend(tr);
+      });
+    }
+
+    function applyFeedback() {
+      const score = Number(document.getElementById('feedbackScore').value || 0);
+      const alpha = 0.05;
+      state.policy.costWeight = clamp(state.policy.costWeight + alpha * (score < 0 ? 1 : -0.3), 0.1, 0.7);
+      state.policy.comfortWeight = clamp(state.policy.comfortWeight + alpha * (score > 0 ? 0.2 : -0.2), 0.1, 0.5);
+      state.policy.carbonWeight = clamp(state.policy.carbonWeight + alpha * 0.1, 0.1, 0.4);
+      state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + alpha * score, 0.05, 0.3);
+      refreshPolicy();
+    }
+
+    function refreshPolicy() {
+      document.getElementById('weightsView').textContent = JSON.stringify(state.policy, null, 2);
+    }
+
+    function toggleAutonomous() {
+      state.autoMode = !state.autoMode;
+      const btn = document.getElementById('autoBtn');
+      if (state.autoMode) {
+        btn.textContent = 'Stop Autonomous Mode';
+        state.timer = setInterval(() => {
+          if (state.telemetry.length) runDecisionCycle();
+          if (Math.random() > 0.5) applyFeedback();
+        }, 7000);
+      } else {
+        btn.textContent = 'Start Autonomous Mode';
+        clearInterval(state.timer);
+      }
+    }
+
+
+
+    function runEvolutionCycle() {
+      state.evolution.generation += 1;
+      const policyScore = (state.policy.autonomyWeight + state.policy.carbonWeight) / 2;
+      const decisionScore = state.decisions.length ? Math.min(1, 0.4 + state.decisions.length / 200) : 0.4;
+      const noise = (Math.random() - 0.5) * 0.08;
+      state.evolution.fitness = clamp((policyScore * 0.55) + (decisionScore * 0.45) + noise, 0, 1);
+
+      const note = {
+        at: new Date().toISOString(),
+        generation: state.evolution.generation,
+        mutation: `Adjusted policy exploration to ${(0.1 + Math.random()*0.4).toFixed(2)}`,
+        fitness: Number(state.evolution.fitness.toFixed(3))
+      };
+      state.evolution.notes.push(note);
+      state.evolution.notes = state.evolution.notes.slice(-10);
+
+      if (state.evolution.enabled && state.evolution.fitness > 0.75) {
+        state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + 0.01, 0.05, 0.3);
+      }
+
+      refreshEvolution();
+    }
+
+    function toggleEvolution() {
+      state.evolution.enabled = !state.evolution.enabled;
+      document.getElementById('evoBtn').textContent = state.evolution.enabled ? 'Disable DGM Mode' : 'Enable DGM Mode';
+      refreshEvolution();
+    }
+
+    function refreshEvolution() {
+      const status = state.evolution.enabled ? '<span class="badge ok">ENABLED</span>' : '<span class="badge warn">DISABLED</span>';
+      document.getElementById('evolutionStatus').innerHTML = `${status} Generation ${state.evolution.generation}, Fitness ${state.evolution.fitness.toFixed(3)}`;
+      document.getElementById('evolutionView').textContent = JSON.stringify(state.evolution, null, 2);
+    }
+
+
+    function apiRouter(path) {
+      const routes = {
+        '/api/v1/devices': () => ({ count: state.devices.length, data: state.devices }),
+        '/api/v1/telemetry': () => ({ count: state.telemetry.length, data: state.telemetry.slice(-20) }),
+        '/api/v1/decisions': () => ({ count: state.decisions.length, data: state.decisions.slice(-20) }),
+        '/api/v1/recommendations': () => ({ count: state.recommendations.length, data: state.recommendations.slice(-20) }),
+        '/api/v1/policy': () => ({ data: state.policy }),
+        '/api/v1/evolution': () => ({ data: state.evolution })
+      };
+      if (!routes[path]) return { error: 'Not Found', status: 404 };
+      return { status: 200, ...routes[path]() };
+    }
+
+    function callApi() {
+      const path = document.getElementById('apiEndpoint').value;
+      const response = apiRouter(path);
+      document.getElementById('apiOutput').textContent = JSON.stringify(response, null, 2);
+    }
+
+    function loadDocumentation() {
+      const text = `
+SYSTEM OVERVIEW
+---------------
+Name: HyperAgent Home Energy API
+Goal: Autonomous decision-making and adaptive learning for home energy optimization.
+
+KEY CAPABILITIES
+----------------
+1) Universal Device Connectivity:
+   - Device profiles support REST, MQTT, Modbus, BACnet, Zigbee, Z-Wave, Webhook.
+   - Works as an adapter layer to normalize telemetry and actions.
+
+2) Data Ingestion:
+   - CSV upload supported natively in this file.
+   - XLS/XLSX parsing stub provided (expects SheetJS in production).
+   - Schema: timestamp, deviceId, powerKw, temperature, pricePerKwh, occupancy.
+
+3) HyperAgent Intelligence:
+   - Autonomous loop evaluates latest device telemetry.
+   - Decision outputs: reduce_load, defer_charging, preheat_home, maintain, opportunistic_run.
+   - Can either execute automatic action or generate recommendation.
+
+4) Learning & Adaptation:
+   - Online policy update from feedback score in range [-1, +1].
+   - Weights dynamically adapted: cost, comfort, carbon, autonomy.
+
+5) API CONTRACT (Simulated in Browser):
+   - GET /api/v1/devices
+   - GET /api/v1/telemetry
+   - GET /api/v1/decisions
+   - GET /api/v1/recommendations
+   - GET /api/v1/policy
+   - GET /api/v1/evolution
+
+6) Darwin Gödel Machine (DGM) Add-on:
+   - Repository: https://github.com/jennyzzt/dgm
+   - This prototype includes a DGM-inspired evolution loop (generation + fitness + mutations).
+   - In production, replace this loop with DGM training/runtime integration from the linked repository.
+
+PRODUCTION BLUEPRINT
+--------------------
+A) Backend API Service
+   - Implement real endpoints with FastAPI/Node/Go.
+   - Add POST /telemetry, POST /decisions/execute, POST /feedback.
+
+B) Message Bus + Connectors
+   - MQTT broker, Modbus poller, REST webhook receiver.
+
+C) Storage
+   - Time-series DB for telemetry + relational DB for metadata.
+
+D) Agent Runtime
+   - Rule engine + ML policy model with reinforcement loop.
+
+E) Security
+   - OAuth2/JWT, mTLS for gateway-to-device communication, audit logs.
+
+F) Interoperability
+   - Use a canonical internal schema and protocol translation adapters.
+   - This allows communication with "any kind of system".
+
+NOTES
+-----
+- This HTML demonstrates architecture and behavior end-to-end.
+- For real autonomous control, implement backend control channel + safety guardrails.
+      `.trim();
+      document.getElementById('docs').textContent = text;
+    }
+
+    refreshPolicy();
+    refreshEvolution();
+    loadDocumentation();
+  </script>
+</body>
+</html>
