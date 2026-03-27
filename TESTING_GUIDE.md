@@ -48,6 +48,15 @@ Then open: `http://localhost:8000/index.html`
    - Enable DGM mode and click **Run Evolution Cycle** a few times.
    - Confirm generation and fitness updates.
 
+7. **Validate dashboard page**
+   - Click **Open Live Dashboard** from `index.html` (or open `dashboard.html` directly).
+   - Confirm the dashboard shows:
+     - Daily consumption (kWh)
+     - AI actions in last 24h
+     - Self-correction score
+     - DGM fitness and evolution notes
+   - Upload an additional real-time CSV in dashboard to verify optimization suggestions appear.
+
 ---
 
 ## 3) CSV schema expected by the HTML app

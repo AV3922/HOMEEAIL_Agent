@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HyperAgent Dashboard</title>
+  <style>
+    :root { --bg:#0d1323; --card:#141f36; --line:#2c3d63; --txt:#eaf1ff; --muted:#9fb2dc; --ok:#38d17a; --warn:#ffba59; --accent:#66d2ff; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:Inter,system-ui,sans-serif; }
+    .wrap { max-width:1200px; margin:0 auto; padding:1rem; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+    .top a { color:var(--accent); font-weight:700; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.8rem; margin:.8rem 0; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:.85rem; }
+    .label { color:var(--muted); font-size:.85rem; }
+    .value { font-size:1.35rem; font-weight:800; }
+    .grid { display:grid; grid-template-columns:2fr 1fr; gap:.9rem; }
+    @media (max-width:950px){ .grid{grid-template-columns:1fr;} }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { border-bottom:1px solid var(--line); padding:.45rem; text-align:left; }
+    canvas { width:100%; height:250px; background:#0f1931; border:1px solid var(--line); border-radius:10px; }
+    .btn { border:0; border-radius:8px; padding:.5rem .7rem; font-weight:700; cursor:pointer; }
+    .primary{background:var(--accent); color:#05233a;} .secondary{background:#2f446d;color:#e4efff;}
+    .ok { color:var(--ok); } .warn{ color:var(--warn); }
+    pre{ background:#0f1931; border:1px solid var(--line); border-radius:8px; padding:.6rem; white-space:pre-wrap; }
+    input{ width:100%; margin-top:.4rem; border:1px solid var(--line); background:#0f1931; color:var(--txt); border-radius:8px; padding:.45rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:.2rem 0">HyperAgent Daily Dashboard</h1>
+        <div class="label">Current Version: v1.1-demo | DGM Enabled Analytics</div>
+      </div>
+      <div>
+        <a href="index.html">← Back to Control Center</a>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="card"><div class="label">Daily Consumption</div><div class="value" id="kpiConsumption">0 kWh</div></div>
+      <div class="card"><div class="label">AI Actions (24h)</div><div class="value" id="kpiActions">0</div></div>
+      <div class="card"><div class="label">Self-Correction Score</div><div class="value" id="kpiCorrection">0%</div></div>
+      <div class="card"><div class="label">DGM Fitness</div><div class="value" id="kpiFitness">0.000</div></div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h3 style="margin-top:0">Daily Consumption Trend (kWh buckets)</h3>
+        <canvas id="trend" width="900" height="250"></canvas>
+      </section>
+
+      <section class="card">
+        <h3 style="margin-top:0">Real-time Dataset Upload</h3>
+        <div class="label">Upload CSV to preview optimization opportunities.</div>
+        <input id="rtFile" type="file" accept=".csv" />
+        <button class="btn primary" onclick="analyzeRealtime()">Analyze Dataset</button>
+        <div id="rtStatus" class="label" style="margin-top:.45rem"></div>
+        <pre id="rtTips">No analysis yet.</pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:.8rem">
+      <h3 style="margin-top:0">What AI changed today</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Target</th><th>Action</th><th>Mode</th><th>Reason</th></tr></thead>
+        <tbody id="changesBody"></tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-top:.8rem">
+      <h3 style="margin-top:0">Self-correction & DGM evolution</h3>
+      <div class="label">How the agent is adjusting policy and improving over generations.</div>
+      <pre id="selfCorrection"></pre>
+    </section>
+  </div>
+
+<script>
+  function loadState() {
+    try {
+      const raw = localStorage.getItem('hyperagent_state');
+      return raw ? JSON.parse(raw) : { telemetry: [], decisions: [], policy: {}, evolution: { fitness: 0, generation: 0, notes: [] } };
+    } catch {
+      return { telemetry: [], decisions: [], policy: {}, evolution: { fitness: 0, generation: 0, notes: [] } };
+    }
+  }
+
+  function within24h(iso) {
+    const t = new Date(iso).getTime();
+    return Number.isFinite(t) && (Date.now() - t) <= 24*60*60*1000;
+  }
+
+  function computeDailyConsumption(telemetry) {
+    return telemetry.filter(r => within24h(r.timestamp)).reduce((sum, r) => sum + (Number(r.powerKw)||0)*0.25, 0);
+  }
+
+  function computeCorrection(decisions, policy) {
+    const total = decisions.length || 1;
+    const recommended = decisions.filter(d => d.mode === 'recommendation').length;
+    const autonomy = Number(policy.autonomyWeight || 0.1);
+    return Math.min(100, ((total - recommended) / total) * 70 + autonomy * 100 * 0.3);
+  }
+
+  function renderChanges(decisions) {
+    const body = document.getElementById('changesBody');
+    body.innerHTML = '';
+    decisions.slice(-20).reverse().forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${new Date(d.at).toLocaleString()}</td><td>${d.target}</td><td>${d.action}</td><td>${d.mode}</td><td>${d.reason}</td>`;
+      body.appendChild(tr);
+    });
+    if (!decisions.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="5" class="warn">No decisions yet. Run decision cycle in Control Center.</td>';
+      body.appendChild(tr);
+    }
+  }
+
+  function renderTrend(telemetry) {
+    const canvas = document.getElementById('trend');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const slots = Array.from({length: 24}, () => 0);
+    telemetry.filter(r => within24h(r.timestamp)).forEach(r => {
+      const h = new Date(r.timestamp).getHours();
+      slots[h] += (Number(r.powerKw)||0) * 0.25;
+    });
+
+    const max = Math.max(0.5, ...slots);
+    const w = canvas.width, h = canvas.height;
+    const pad = 30, bw = (w - pad*2) / 24;
+
+    ctx.fillStyle = '#7fd7ff';
+    slots.forEach((v,i) => {
+      const bh = ((h - pad*2) * (v/max));
+      ctx.fillRect(pad + i*bw + 2, h - pad - bh, bw - 4, bh);
+    });
+
+    ctx.fillStyle = '#9fb2dc';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('00', pad, h - 8);
+    ctx.fillText('12', pad + 12*bw, h - 8);
+    ctx.fillText('23', pad + 23*bw, h - 8);
+  }
+
+  function renderSelfCorrection(state) {
+    const evo = state.evolution || { fitness: 0, generation: 0, notes: [] };
+    const policy = state.policy || {};
+    const text = [
+      `Policy Weights: ${JSON.stringify(policy)}`,
+      `DGM Generation: ${evo.generation || 0}`,
+      `DGM Fitness: ${(evo.fitness || 0).toFixed ? evo.fitness.toFixed(3) : evo.fitness}`,
+      '',
+      'Latest Evolution Notes:',
+      ...(evo.notes || []).slice(-5).map(n => `- G${n.generation}: ${n.mutation} (fitness ${n.fitness})`)
+    ].join('\n');
+    document.getElementById('selfCorrection').textContent = text;
+  }
+
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const headers = (lines[0]||'').split(',').map(h => h.trim());
+    return lines.slice(1).map(l => {
+      const vals = l.split(',').map(v => v.trim());
+      const r = {};
+      headers.forEach((h, i) => r[h] = vals[i]);
+      return r;
+    });
+  }
+
+  async function analyzeRealtime() {
+    const file = document.getElementById('rtFile').files?.[0];
+    if (!file) {
+      document.getElementById('rtStatus').textContent = 'Please upload a CSV file.';
+      return;
+    }
+    const rows = parseCSV(await file.text());
+    const tips = [];
+    const highTariff = rows.filter(r => Number(r.pricePerKwh) > 0.25);
+    const hvacCold = rows.filter(r => String(r.deviceId||'').includes('hvac') && Number(r.temperature) < 20 && Number(r.occupancy) === 1);
+    const heavyLoad = rows.filter(r => Number(r.powerKw) > 5);
+
+    if (highTariff.length) tips.push(`Shift flexible loads (${highTariff.length} rows) to low-tariff periods.`);
+    if (hvacCold.length) tips.push(`Preheat strategy recommended for ${hvacCold.length} occupied-cold HVAC events.`);
+    if (heavyLoad.length) tips.push(`Apply load shedding for ${heavyLoad.length} high-load intervals (powerKw > 5).`);
+    if (!tips.length) tips.push('Dataset looks efficient; continue current strategy and monitor tariffs.');
+
+    document.getElementById('rtStatus').innerHTML = `<span class='ok'>Analyzed ${rows.length} rows.</span>`;
+    document.getElementById('rtTips').textContent = tips.map((t,i)=>`${i+1}. ${t}`).join('\n');
+  }
+
+  function init() {
+    const state = loadState();
+    const telemetry = state.telemetry || [];
+    const decisions = (state.decisions || []).filter(d => within24h(d.at));
+
+    const daily = computeDailyConsumption(telemetry);
+    const correction = computeCorrection(decisions, state.policy || {});
+
+    document.getElementById('kpiConsumption').textContent = `${daily.toFixed(2)} kWh`;
+    document.getElementById('kpiActions').textContent = String(decisions.length);
+    document.getElementById('kpiCorrection').textContent = `${correction.toFixed(1)}%`;
+    document.getElementById('kpiFitness').textContent = Number(state.evolution?.fitness || 0).toFixed(3);
+
+    renderTrend(telemetry);
+    renderChanges(decisions);
+    renderSelfCorrection(state);
+  }
+
+  init();
+</script>
+</body>
+</html>

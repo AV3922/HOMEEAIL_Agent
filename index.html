@@ -134,6 +134,7 @@
         <h1>Autonomous Home Energy HyperAgent API</h1>
         <p><b>What this page does:</b> connects heterogeneous devices, ingests hardware telemetry, makes autonomous decisions, learns from feedback, and exposes API-style responses.</p>
         <p><b>Who this is for:</b> operations users (easy workflow) + engineering team (technical details in expandable docs below).</p>
+        <p><a href="dashboard.html" style="color:#8fdfff;font-weight:700">Open Live Dashboard →</a></p>
       </section>
 
       <div class="grid">
@@ -237,6 +238,26 @@
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
     const badge = (tone, text) => `<span class="badge ${tone}">${text}</span>`;
 
+    function persistState() {
+      localStorage.setItem('hyperagent_state', JSON.stringify(state));
+    }
+
+    function loadPersistedState() {
+      try {
+        const raw = localStorage.getItem('hyperagent_state');
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+          state.devices = Array.isArray(saved.devices) ? saved.devices : [];
+          state.telemetry = Array.isArray(saved.telemetry) ? saved.telemetry : [];
+          state.decisions = Array.isArray(saved.decisions) ? saved.decisions : [];
+          state.recommendations = Array.isArray(saved.recommendations) ? saved.recommendations : [];
+          state.policy = saved.policy || state.policy;
+          state.evolution = saved.evolution || state.evolution;
+        }
+      } catch (_) {}
+    }
+
     function connectDevice() {
       const d = {
         id: document.getElementById('deviceId').value.trim() || `device_${Date.now()}`,
@@ -248,6 +269,7 @@
       state.devices = state.devices.filter(x => x.id !== d.id);
       state.devices.push(d);
       document.getElementById('connectStatus').innerHTML = `${badge('ok', 'CONNECTED')} ${d.id} onboarded via ${d.protocol} adapter.`;
+      persistState();
     }
 
     function parseCSV(text) {
@@ -295,6 +317,7 @@
         else rows = await parseXLSX(file);
         state.telemetry.push(...rows);
         document.getElementById('ingestStatus').innerHTML = `${badge('ok', 'INGESTED')} ${rows.length} rows from ${file.name}.`;
+      persistState();
       } catch (e) {
         document.getElementById('ingestStatus').innerHTML = `${badge('danger', 'ERROR')} ${e.message}`;
       }
@@ -313,6 +336,7 @@
       }));
       state.telemetry.push(...rows);
       document.getElementById('ingestStatus').innerHTML = `${badge('ok', 'DEMO DATA')} ${rows.length} synthetic rows loaded.`;
+      persistState();
     }
 
     function latestTelemetryByDevice() {
@@ -359,6 +383,7 @@
       state.decisions.push(...batch);
       renderDecisions(batch);
       document.getElementById('agentSummary').innerHTML = `${badge('ok', 'DONE')} ${batch.length} decisions generated.`;
+      persistState();
     }
 
     function renderDecisions(batch) {
@@ -378,6 +403,7 @@
       state.policy.carbonWeight = clamp(state.policy.carbonWeight + alpha * 0.1, 0.1, 0.4);
       state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + alpha * score, 0.05, 0.3);
       refreshPolicy();
+      persistState();
     }
 
     function refreshPolicy() {
@@ -420,12 +446,14 @@
       }
       refreshEvolution();
       refreshPolicy();
+      persistState();
     }
 
     function toggleEvolution() {
       state.evolution.enabled = !state.evolution.enabled;
       document.getElementById('evoBtn').textContent = state.evolution.enabled ? 'Disable DGM Mode' : 'Enable DGM Mode';
       refreshEvolution();
+      persistState();
     }
 
     function refreshEvolution() {
@@ -500,6 +528,7 @@
       document.getElementById('docs').textContent = lines.join('\n');
     }
 
+    loadPersistedState();
     refreshPolicy();
     refreshEvolution();
     loadDocumentation();
