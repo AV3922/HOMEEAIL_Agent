@@ -49,7 +49,8 @@ Then open: `http://localhost:8000/index.html`
    - Confirm generation and fitness updates.
 
 7. **Validate dashboard page**
-   - Click **Open Live Dashboard** from `index.html` (or open `dashboard.html` directly).
+   - Click **Open Live Dashboard (Same Page)** from `index.html`.
+   - This embedded mode avoids any `ERR_FILE_NOT_FOUND` issues from missing external files.
    - Confirm the dashboard shows:
      - Daily consumption (kWh)
      - AI actions in last 24h

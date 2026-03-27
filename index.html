@@ -134,7 +134,7 @@
         <h1>Autonomous Home Energy HyperAgent API</h1>
         <p><b>What this page does:</b> connects heterogeneous devices, ingests hardware telemetry, makes autonomous decisions, learns from feedback, and exposes API-style responses.</p>
         <p><b>Who this is for:</b> operations users (easy workflow) + engineering team (technical details in expandable docs below).</p>
-        <p><a href="dashboard.html" style="color:#8fdfff;font-weight:700">Open Live Dashboard →</a></p>
+        <p><a href="#liveDashboard" style="color:#8fdfff;font-weight:700">Open Live Dashboard (Same Page) →</a></p>
       </section>
 
       <div class="grid">
@@ -218,6 +218,30 @@
             <summary>Architecture Overview</summary>
             <pre id="docs"></pre>
           </details>
+        </section>
+
+        <section class="card full" id="liveDashboard">
+          <h2>8) Live Dashboard (Demo Safe Mode)</h2>
+          <div class="help">No external file needed. This embedded dashboard shows daily consumption, AI changes, self-correction, and optimization from real-time CSV.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.6rem;margin-bottom:.7rem">
+            <div class="card"><div class="help">Daily Consumption</div><div id="kpiConsumption" style="font-size:1.3rem;font-weight:800">0 kWh</div></div>
+            <div class="card"><div class="help">AI Actions (24h)</div><div id="kpiActions" style="font-size:1.3rem;font-weight:800">0</div></div>
+            <div class="card"><div class="help">Self-Correction</div><div id="kpiCorrection" style="font-size:1.3rem;font-weight:800">0%</div></div>
+            <div class="card"><div class="help">DGM Fitness</div><div id="kpiFitness" style="font-size:1.3rem;font-weight:800">0.000</div></div>
+          </div>
+          <canvas id="trend" width="900" height="240" style="width:100%;background:#0f1931;border:1px solid var(--border);border-radius:8px"></canvas>
+          <h3>AI Changes (Latest 20)</h3>
+          <table>
+            <thead><tr><th>Time</th><th>Target</th><th>Action</th><th>Mode</th><th>Reason</th></tr></thead>
+            <tbody id="changesBody"></tbody>
+          </table>
+          <h3>Real-time Data Optimization Advisor</h3>
+          <input id="rtFile" type="file" accept=".csv" />
+          <button class="primary" onclick="analyzeRealtimeDashboard()">Analyze CSV for Optimization</button>
+          <div id="rtStatus" class="status"></div>
+          <pre id="rtTips">No analysis yet.</pre>
+          <h3>Self-correction Notes</h3>
+          <pre id="selfCorrection"></pre>
         </section>
       </div>
     </main>
@@ -393,6 +417,7 @@
         tr.innerHTML = `<td>${new Date(d.at).toLocaleTimeString()}</td><td>${d.target}</td><td>${d.action}</td><td>${d.reason}</td><td>${d.mode}</td>`;
         tbody.prepend(tr);
       });
+      refreshDashboard();
     }
 
     function applyFeedback() {
@@ -403,6 +428,7 @@
       state.policy.carbonWeight = clamp(state.policy.carbonWeight + alpha * 0.1, 0.1, 0.4);
       state.policy.autonomyWeight = clamp(state.policy.autonomyWeight + alpha * score, 0.05, 0.3);
       refreshPolicy();
+      refreshDashboard();
       persistState();
     }
 
@@ -454,6 +480,7 @@
       document.getElementById('evoBtn').textContent = state.evolution.enabled ? 'Disable DGM Mode' : 'Enable DGM Mode';
       refreshEvolution();
       persistState();
+      refreshDashboard();
     }
 
     function refreshEvolution() {
@@ -479,6 +506,89 @@
     function callApi() {
       const path = document.getElementById('apiEndpoint').value;
       document.getElementById('apiOutput').textContent = JSON.stringify(apiRouter(path), null, 2);
+    }
+
+    function within24h(iso) {
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) && (Date.now() - t) <= 24 * 60 * 60 * 1000;
+    }
+
+    function refreshDashboard() {
+      const telemetry24 = state.telemetry.filter(r => within24h(r.timestamp));
+      const decisions24 = state.decisions.filter(d => within24h(d.at));
+      const consumption = telemetry24.reduce((s, r) => s + (Number(r.powerKw) || 0) * 0.25, 0);
+      const total = decisions24.length || 1;
+      const recommended = decisions24.filter(d => d.mode === 'recommendation').length;
+      const correction = Math.min(100, ((total - recommended) / total) * 70 + (state.policy.autonomyWeight || 0.1) * 30);
+
+      document.getElementById('kpiConsumption').textContent = `${consumption.toFixed(2)} kWh`;
+      document.getElementById('kpiActions').textContent = String(decisions24.length);
+      document.getElementById('kpiCorrection').textContent = `${correction.toFixed(1)}%`;
+      document.getElementById('kpiFitness').textContent = Number(state.evolution.fitness || 0).toFixed(3);
+
+      const body = document.getElementById('changesBody');
+      body.innerHTML = '';
+      decisions24.slice(-20).reverse().forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${new Date(d.at).toLocaleString()}</td><td>${d.target}</td><td>${d.action}</td><td>${d.mode}</td><td>${d.reason}</td>`;
+        body.appendChild(tr);
+      });
+      if (!decisions24.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan=\"5\">No actions yet. Run a decision cycle above.</td>';
+        body.appendChild(tr);
+      }
+
+      const notes = (state.evolution.notes || []).slice(-5).map(n => `- G${n.generation}: ${n.mutation} (fitness ${n.fitness})`);
+      document.getElementById('selfCorrection').textContent = [
+        `Policy: ${JSON.stringify(state.policy)}`,
+        `DGM Generation: ${state.evolution.generation}`,
+        `DGM Fitness: ${Number(state.evolution.fitness || 0).toFixed(3)}`,
+        '',
+        'Recent evolution notes:',
+        ...notes
+      ].join('\\n');
+
+      renderTrend(telemetry24);
+    }
+
+    function renderTrend(telemetry24) {
+      const canvas = document.getElementById('trend');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const buckets = Array.from({ length: 24 }, () => 0);
+      telemetry24.forEach(r => {
+        const h = new Date(r.timestamp).getHours();
+        buckets[h] += (Number(r.powerKw) || 0) * 0.25;
+      });
+      const max = Math.max(0.5, ...buckets);
+      const pad = 26;
+      const bw = (canvas.width - pad * 2) / 24;
+      ctx.fillStyle = '#7fd7ff';
+      buckets.forEach((v, i) => {
+        const bh = ((canvas.height - pad * 2) * v) / max;
+        ctx.fillRect(pad + i * bw + 2, canvas.height - pad - bh, bw - 4, bh);
+      });
+    }
+
+    async function analyzeRealtimeDashboard() {
+      const file = document.getElementById('rtFile').files?.[0];
+      if (!file) {
+        document.getElementById('rtStatus').innerHTML = `${badge('warn', 'NO FILE')} Upload CSV first.`;
+        return;
+      }
+      const rows = parseCSV(await file.text());
+      const highTariff = rows.filter(r => Number(r.pricePerKwh) > 0.25).length;
+      const hvacCold = rows.filter(r => String(r.deviceId || '').includes('hvac') && Number(r.temperature) < 20 && Number(r.occupancy) === 1).length;
+      const heavyLoad = rows.filter(r => Number(r.powerKw) > 5).length;
+      const tips = [];
+      if (highTariff) tips.push(`Shift flexible loads for ${highTariff} high-tariff intervals.`);
+      if (hvacCold) tips.push(`Use preheat optimization for ${hvacCold} occupied-cold HVAC events.`);
+      if (heavyLoad) tips.push(`Apply load shedding or battery discharge on ${heavyLoad} heavy-load intervals.`);
+      if (!tips.length) tips.push('Current uploaded dataset looks near optimal; continue and monitor dynamic tariffs.');
+      document.getElementById('rtStatus').innerHTML = `${badge('ok', 'ANALYZED')} ${rows.length} rows checked.`;
+      document.getElementById('rtTips').textContent = tips.map((t, i) => `${i + 1}. ${t}`).join('\\n');
     }
 
     function loadDocumentation() {
@@ -532,6 +642,7 @@
     refreshPolicy();
     refreshEvolution();
     loadDocumentation();
+    refreshDashboard();
   </script>
 </body>
 </html>
