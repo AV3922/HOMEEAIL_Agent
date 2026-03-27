@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HyperAgent Backend</title>
+  <style>
+    body{margin:0;background:#0b1324;color:#eaf1ff;font-family:Inter,system-ui,sans-serif}
+    .wrap{max-width:980px;margin:0 auto;padding:1rem}
+    .card{background:#141f36;border:1px solid #2c3d63;border-radius:12px;padding:1rem;margin-bottom:.8rem}
+    a{color:#6ad6ff;font-weight:700}
+    code,pre{background:#0f1931;border:1px solid #2c3d63;border-radius:8px;padding:.6rem;display:block;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>HyperAgent Backend (Demo View)</h1>
+      <p>This page represents the backend side of the agent for demo navigation.</p>
+      <a href="dashboard.html">→ Go to Dashboard</a>
+    </div>
+    <div class="card">
+      <h2>Backend Status</h2>
+      <pre id="status">Initializing...</pre>
+    </div>
+    <div class="card">
+      <h2>Expected API Surface</h2>
+      <code>GET /api/v1/devices
+GET /api/v1/telemetry
+GET /api/v1/decisions
+GET /api/v1/recommendations
+GET /api/v1/policy
+GET /api/v1/evolution</code>
+    </div>
+  </div>
+  <script>
+    const raw = localStorage.getItem('hyperagent_state');
+    const state = raw ? JSON.parse(raw) : null;
+    const payload = {
+      backend: 'online (demo)',
+      has_state: Boolean(state),
+      telemetry_rows: state?.telemetry?.length || 0,
+      decisions: state?.decisions?.length || 0,
+      policy: state?.policy || null,
+      evolution: state?.evolution || null
+    };
+    document.getElementById('status').textContent = JSON.stringify(payload, null, 2);
+  </script>
+</body>
+</html>
