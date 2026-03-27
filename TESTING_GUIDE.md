@@ -19,43 +19,23 @@ Then open: `http://localhost:8000/index.html`
 
 ## 2) Basic end-to-end smoke test
 
-1. **Connect device**
-   - In section **Device Connection**, set:
-     - Device ID: `hvac_main`
-     - Type: `HVAC`
-     - Protocol: `REST`
-   - Click **Connect Device**.
+1. **Open dashboard**
+   - Click **Open Dashboard** from `index.html`.
 
-2. **Load telemetry**
-   - Click **Load Demo Dataset** OR upload a CSV in section **Hardware Data Upload**.
-
-3. **Generate actions**
-   - Click **Run 1 Decision Cycle**.
-   - Confirm rows appear in decision table.
-
-4. **Validate learning**
-   - Set feedback score to `0.6` then click **Apply Feedback**.
-   - Confirm policy weights change.
-
-5. **Validate API facade**
-   - In API Playground, call:
-     - `GET /api/v1/devices`
-     - `GET /api/v1/telemetry`
-     - `GET /api/v1/decisions`
-     - `GET /api/v1/evolution`
-
-6. **Validate DGM mode**
-   - Enable DGM mode and click **Run Evolution Cycle** a few times.
-   - Confirm generation and fitness updates.
-
-7. **Validate dashboard page**
-   - Click **Open Live Dashboard** from `index.html` (or open `dashboard.html` directly).
+2. **Validate dashboard page**
+   - Confirm dashboard opens from `index.html` and works as the main demo UI.
    - Confirm the dashboard shows:
      - Daily consumption (kWh)
      - AI actions in last 24h
      - Self-correction score
      - DGM fitness and evolution notes
    - Upload an additional real-time CSV in dashboard to verify optimization suggestions appear.
+   - Click **Back to Agent Backend** and confirm `backend.html` opens.
+
+3. **Validate backend page**
+   - In backend page, confirm status JSON renders.
+   - Confirm API surface list is visible.
+   - Click **Go to Dashboard** and verify round-trip navigation.
 
 ---
 
